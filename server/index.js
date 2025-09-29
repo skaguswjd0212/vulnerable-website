@@ -1,21 +1,25 @@
 const express = require('express')
 const app = express()
 const port = 5000
-const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
-const { User } = require("./models/User");
-const { auth } = require('./middleware/auth')
+const mongoose = require('mongoose');
 const config = require("./config/dev")
 
-app.use(bodyParser.urlencoded({extended: true}));
-app.use(bodyParser.json());
-app.use(cookieParser());
+const { User } = require("./models/User");
+const { auth } = require('./middleware/auth')
 
-const mongoose = require('mongoose');
+//DB 연결
 mongoose.connect(config.mongoURI).then(() => console.log('MongoDB Connected...'))
 .catch(err => console.log(err))
 
-app.get('/',(req, res) => res.send('Hello World!')) 
+//Middleware 설정
+app.use(express.urlencoded({extended: true}));
+app.use(express.json());
+app.use(cookieParser());
+
+// 라우터 연결
+app.use('/api/payments', require('./routes/payments'));
+app.use('/api/orders', require('./routes/orders'));
 
 app.post('/api/users/register', (req, res) => {
     const user = new User(req.body)

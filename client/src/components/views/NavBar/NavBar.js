@@ -1,3 +1,4 @@
+// client/src/components/views/NavBar/NavBar.js
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -33,16 +34,27 @@ function NavBar() {
         color: 'black'
     };
     
+    const leftMenuStyle = {
+        display: 'flex',
+        gap: '1rem',
+        alignItems: 'center'
+    };
+
     const menuStyle = {
         display: 'flex',
         gap: '1rem' // 메뉴 간격
     };
 
+    const linkStyle = {
+        textDecoration: 'none',
+        color: '#495057'
+    };
 
     return (
         <nav style={navStyle}>
-            <div>
+            <div style={leftMenuStyle}>
                 <a href="/" style={logoStyle}>My Shopping App</a>
+                <a href="/orders" style={linkStyle}>주문내역</a>
             </div>
 
             <div style={menuStyle}>

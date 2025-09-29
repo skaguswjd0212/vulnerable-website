@@ -1,0 +1,127 @@
+/* client/src/components/views/OrderHistoryPage/OrderHistoryPage.css */
+.order-history-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.order-history-container h1 {
+    font-size: 28px;
+    margin-bottom: 30px;
+    color: #333;
+}
+
+.loading {
+    text-align: center;
+    padding: 60px 20px;
+    font-size: 18px;
+    color: #666;
+}
+
+.empty-orders {
+    text-align: center;
+    padding: 60px 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.empty-orders p {
+    font-size: 16px;
+    color: #666;
+}
+
+.orders-list {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.orders-list table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.orders-list th {
+    background: #f8f9fa;
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.orders-list td {
+    padding: 15px;
+    border-bottom: 1px solid #dee2e6;
+    vertical-align: top;
+}
+
+.orders-list tr:last-child td {
+    border-bottom: none;
+}
+
+.orders-list tr:hover {
+    background: #f8f9fa;
+}
+
+.order-id {
+    font-family: monospace;
+    font-size: 13px;
+    color: #6c757d;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.products-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.product-item {
+    font-size: 14px;
+    color: #495057;
+}
+
+.amount {
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.completed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.cancelled {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .orders-list table {
+        font-size: 14px;
+    }
+    
+    .orders-list th,
+    .orders-list td {
+        padding: 10px;
+    }
+}

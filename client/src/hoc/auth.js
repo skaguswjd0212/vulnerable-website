@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { auth } from '../_actions/user_action';
+import { useNavigate } from 'react-router-dom';
 
 export default function (SpecificComponent, option, adminRoute = null) {
 
@@ -9,6 +10,7 @@ export default function (SpecificComponent, option, adminRoute = null) {
     //false   =>  로그인한 유저는 출입 불가능한 페이지
     function AuthenticationCheck(props) {
         const dispatch = useDispatch();
+        const navigate = useNavigate();
 
         useEffect(() => {
 
@@ -22,10 +24,11 @@ export default function (SpecificComponent, option, adminRoute = null) {
                 } else {
                     //로그인 한 상태 
                     if (adminRoute && !response.payload.isAdmin) {
-                        props.history.push('/')
+                        navigate('/');
                     } else {
-                        if (option === false)
-                            props.history.push('/')
+                        if (option === false) {
+                            navigate('/');
+                        }
                     }
                 }
             })
