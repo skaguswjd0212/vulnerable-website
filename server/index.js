@@ -18,7 +18,6 @@ app.use(express.json());
 app.use(cookieParser());
 
 // 라우터 연결
-app.use('/api/payments', require('./routes/payments'));
 app.use('/api/orders', require('./routes/orders'));
 
 app.post('/api/users/register', (req, res) => {

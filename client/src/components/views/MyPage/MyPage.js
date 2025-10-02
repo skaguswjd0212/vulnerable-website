@@ -139,7 +139,7 @@ function MyPage() {
                                         {order.status === 'Payment Completed' && '결제완료'}
                                         {order.status === 'Shipped' && '배송중'}
                                         {order.status === 'Delivered' && '배송완료'}
-                                        {order.status === 'Cancelled' && '취소완료'}
+                                        {order.status === 'Cancelled' && '환불완료'}
                                     </span>
                                 </div>
 

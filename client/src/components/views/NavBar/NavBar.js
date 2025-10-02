@@ -54,7 +54,10 @@ function NavBar() {
         <nav style={navStyle}>
             <div style={leftMenuStyle}>
                 <a href="/" style={logoStyle}>My Shopping App</a>
-                <a href="/orders" style={linkStyle}>마이페이지</a>
+                {/* 로그인 한 상태일 때만 마이페이지 표시 */}
+                {user.userData && user.userData.isAuth && (
+                    <a href="/orders" style={linkStyle}>마이페이지</a>
+                )}
             </div>
 
             <div style={menuStyle}>
