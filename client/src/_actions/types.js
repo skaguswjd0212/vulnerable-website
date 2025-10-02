@@ -2,3 +2,4 @@ export const LOGIN_USER = "login_user";
 export const REGISTER_USER = "register_user";
 export const AUTH_USER = "auth_user";
 export const GET_ORDERS = 'get_orders';
+export const GET_ORDER_DETAIL = 'get_order_detail';
