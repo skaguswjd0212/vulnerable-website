@@ -25,6 +25,14 @@ const orderSchema = new mongoose.Schema({
         type: String,
         default: 'Order Placed',
         enum: ['Payment Completed', 'Shipped', 'Delivered', 'Cancelled']
+    },
+    couponCode: {           
+        type: String,
+        default: null
+    },
+    discountAmount: {       
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 

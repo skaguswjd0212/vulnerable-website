@@ -99,7 +99,7 @@ function MyPage() {
         } finally {
             setRefundLoading(false);
         }
-    };
+};
 
     if (loading) {
         return <div className="loading">주문 내역을 불러오는 중...</div>;
@@ -170,7 +170,21 @@ function MyPage() {
                                     )}
                                 </div>
 
-                                <div className="order-summary">
+                                    <div className="order-summary">
+                                        {order.couponCode && (
+                                            <div className="summary-row coupon">
+                                                <span>사용 쿠폰</span>
+                                                <span className="coupon-code">{order.couponCode}</span>
+                                            </div>
+                                        )}
+                                        {order.discountAmount > 0 && (
+                                            <div className="summary-row discount">
+                                                <span>쿠폰 할인</span>
+                                                <span className="discount-amount">
+                                                    -{order.discountAmount.toLocaleString()}원
+                                                </span>
+                                            </div>
+                                        )}
                                     <div className="summary-row total">
                                         <span>총 결제금액</span>
                                         <strong className="amount">
@@ -323,6 +337,6 @@ function MyPage() {
             )}
         </div>
     );
-}
+}  
 
 export default MyPage;

@@ -142,7 +142,7 @@ router.post('/:orderId/refund', auth, async (req, res) => {
         
         const refundAmount = product.price * quantity;
         
-        // 7. 이미 환불 요청된 상품인지 확인 (레이스 컨디션 방지!)
+        // 7. 이미 환불 요청된 상품인지 확인 (레이스 컨디션 방지)
         const existingRefund = await Refund.findOne({ 
             orderId: req.params.orderId,
             productId: productId

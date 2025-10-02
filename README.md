@@ -1,4 +1,4 @@
-# vulnerable-website
+
 ```
 boiler-plate
 ├─ client
@@ -18,8 +18,6 @@ boiler-plate
 │     ├─ App.js
 │     ├─ components
 │     │  └─ views
-│     │     ├─ CartPage
-│     │     │  └─ CartPage.js
 │     │     ├─ Footer
 │     │     │  └─ Footer.js
 │     │     ├─ LandingPage
@@ -27,11 +25,10 @@ boiler-plate
 │     │     ├─ LoginPage
 │     │     │  └─ LoginPage.js
 │     │     ├─ MyPage
+│     │     │  ├─ MyPage.css
 │     │     │  └─ MyPage.js
 │     │     ├─ NavBar
 │     │     │  └─ NavBar.js
-│     │     ├─ OrderHistoryPage
-│     │     │  └─ OrderHistoryPage.js
 │     │     └─ RegisterPage
 │     │        └─ RegisterPage.js
 │     ├─ Config.js
@@ -51,19 +48,17 @@ boiler-plate
 │        └─ user_reducer.js
 ├─ package-lock.json
 ├─ package.json
-├─ README.md
 └─ server
    ├─ config
    ├─ index.js
    ├─ middleware
    │  └─ auth.js
    ├─ models
-   │  ├─ Coupon.js
    │  ├─ Order.js
+   │  ├─ Product.js
+   │  ├─ Refund.js
    │  └─ User.js
    └─ routes
-      ├─ export.js
-      ├─ orders.js
-      └─ payments.js
+      └─ orders.js
 
 ```

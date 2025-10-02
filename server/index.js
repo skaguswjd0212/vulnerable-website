@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const config = require("./config/dev")
 
+const { Coupon } = require("./models/Coupon");
 const { User } = require("./models/User");
 const { auth } = require('./middleware/auth')
 
@@ -75,6 +76,25 @@ app.get('/api/users/logout', auth, (req, res) => {
         .catch(err => {
             return res.json({ success: false, err });
         });
+});
+
+// 쿠폰 조회
+app.get('/api/coupons/:code', auth, async (req, res) => {
+    try {
+        const coupon = await Coupon.findOne({code: req.params.code});
+        
+        if(!coupon) {
+            return res.json({success: false, message: '유효하지 않은 쿠폰'});
+        }
+        
+        if(coupon.usedAt) {
+            return res.json({success: false, message: '이미 사용된 쿠폰'});
+        }
+        
+        res.json({success: true, coupon});
+    } catch(err) {
+        res.json({success: false, error: err.message});
+    }
 });
 
 app.listen(port, () => console.log('Example app listening on port ${port}!'))
