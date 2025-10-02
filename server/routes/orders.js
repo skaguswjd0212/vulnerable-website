@@ -189,7 +189,7 @@ router.post('/:orderId/refund', auth, async (req, res) => {
         await refund.save({ session });
         await Order.findByIdAndUpdate(
         req.params.orderId, 
-        { status: 'cancelled' },
+        { status: 'Cancelled' },
         { session }
         );
         // 11. 트랜잭션 커밋

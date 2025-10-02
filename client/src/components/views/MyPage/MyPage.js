@@ -1,9 +1,8 @@
-// client/src/components/views/OrderHistoryPage/OrderHistoryPage.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './OrderHistoryPage.css';
+import './MyPage.css';
 
-function OrderHistoryPage() {
+function MyPage() {
     const [orders, setOrders] = useState([]);
     const [refunds, setRefunds] = useState({});
     const [loading, setLoading] = useState(true);
@@ -92,6 +91,7 @@ function OrderHistoryPage() {
                 alert(response.data.message);
                 setShowRefundModal(false);
                 await fetchRefunds(selectedOrder._id);
+                await fetchMyOrders();
             }
         } catch (error) {
             console.error('환불 요청 실패:', error);
@@ -196,7 +196,7 @@ function OrderHistoryPage() {
                                 </div>
 
                                 <div className="order-actions">
-                                    {order.status === 'cancelled' ? (
+                                    {order.status === 'Cancelled' ? (
                                         <button className="btn-disabled" disabled>
                                             환불 완료
                                         </button>
@@ -325,4 +325,4 @@ function OrderHistoryPage() {
     );
 }
 
-export default OrderHistoryPage;
+export default MyPage;
