@@ -8,7 +8,8 @@ function MyPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedOrder, setSelectedOrder] = useState(null);
-    const [refundAmount, setRefundAmount] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [refundQuantity, setRefundQuantity] = useState(1);
     const [refundReason, setRefundReason] = useState('단순 변심');
     const [showRefundModal, setShowRefundModal] = useState(false);
     const [refundLoading, setRefundLoading] = useState(false);
@@ -62,36 +63,67 @@ function MyPage() {
         }
     };
 
-    const openRefundModal = (order) => {
+    const openRefundModal = (order, product) => {
+        const refundedQty = product.refundedQuantity || 0;
+        const maxRefundable = product.quantity - refundedQty;
+        
+        if (maxRefundable <= 0) {
+            return;
+        }
+        
         setSelectedOrder(order);
-        setRefundAmount('');
+        setSelectedProduct(product);
+        setRefundQuantity(Math.min(1, maxRefundable));
         setRefundReason('단순 변심');
         setShowRefundModal(true);
     };
 
     const handleRefundRequest = async () => {
-    const fullAmount = selectedOrder.amount;
-    
-    // 첫 번째 상품 정보 가져오기
-    const firstProduct = selectedOrder.products[0];
-    
-    try {
-        setRefundLoading(true);
-        const response = await axios.post(
-            `/api/orders/${selectedOrder._id}/refund`,
-            {
-                productId: firstProduct.productId,
-                quantity: firstProduct.quantity,
-                reason: refundReason
-            },
-            { withCredentials: true }
-        );
+        if (!selectedProduct) {
+            alert('상품 정보가 없습니다.');
+            return;
+        }
+
+        try {
+            setRefundLoading(true);
+            const response = await axios.post(
+                `/api/orders/${selectedOrder._id}/refund`,
+                {
+                    productId: selectedProduct.productId,
+                    quantity: refundQuantity,
+                    reason: refundReason
+                },
+                { withCredentials: true }
+            );
 
             if (response.data.success) {
                 alert(response.data.message);
                 setShowRefundModal(false);
+                
+                setOrders(prevOrders => 
+                    prevOrders.map(order => {
+                        if (order._id === selectedOrder._id) {
+                            const updatedProducts = order.products.map(p => {
+                                if (p.productId === selectedProduct.productId) {
+                                    return {
+                                        ...p,
+                                        refundedQuantity: (p.refundedQuantity || 0) + refundQuantity
+                                    };
+                                }
+                                return p;
+                            });
+                            
+                            return {
+                                ...order,
+                                products: updatedProducts,
+                                status: response.data.orderStatus
+                            };
+                        }
+                        return order;
+                    })
+                );
+                
                 await fetchRefunds(selectedOrder._id);
-                await fetchMyOrders();
             }
         } catch (error) {
             console.error('환불 요청 실패:', error);
@@ -99,7 +131,7 @@ function MyPage() {
         } finally {
             setRefundLoading(false);
         }
-};
+    };
 
     if (loading) {
         return <div className="loading">주문 내역을 불러오는 중...</div>;
@@ -111,7 +143,7 @@ function MyPage() {
 
     return (
         <div className="order-history-container">
-            <h1>주문 내역</h1>
+            <h1>주문/환불 내역</h1>
 
             {orders.length === 0 ? (
                 <div className="empty-orders">
@@ -135,60 +167,84 @@ function MyPage() {
                                         </span>
                                         <span className="order-id">주문번호 {order._id}</span>
                                     </div>
-                                    <span className={`status-badge ${order.status}`}>
+                                    <span className={`status-badge ${order.status.replace(/\s+/g, '-')}`}>
                                         {order.status === 'Payment Completed' && '결제완료'}
                                         {order.status === 'Shipped' && '배송중'}
                                         {order.status === 'Delivered' && '배송완료'}
                                         {order.status === 'Cancelled' && '환불완료'}
+                                        {order.status === 'Partially Refunded' && '부분환불'}
                                     </span>
                                 </div>
 
                                 <div className="order-products">
                                     {order.products && order.products.length > 0 ? (
-                                        order.products.map((product, idx) => (
-                                            <div key={idx} className="product-row">
-                                                <div className="product-info">
-                                                    <span className="product-name">{product.name}</span>
-                                                    <span className="product-quantity">수량: {product.quantity}개</span>
+                                        order.products.map((product, idx) => {
+                                            const refundedQty = product.refundedQuantity || 0;
+                                            const remainingQty = product.quantity - refundedQty;
+                                            const isFullyRefunded = remainingQty <= 0;
+                                            const canRefund = !isFullyRefunded && order.status !== 'Cancelled';
+                                            
+                                            return (
+                                                <div key={idx} className="product-row">
+                                                    <div className="product-info">
+                                                        <span className="product-name">{product.name}</span>
+                                                        <span className="product-quantity">
+                                                            수량: {product.quantity}개
+                                                            {refundedQty > 0 && (
+                                                                <span className="refunded-info">
+                                                                    {' '}(환불: {refundedQty}개)
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                    <div className="product-right">
+                                                        <span className="product-price">
+                                                            {(product.price * product.quantity).toLocaleString()}원
+                                                        </span>
+                                                        {isFullyRefunded ? (
+                                                            <span className="product-refund-badge refunded">
+                                                                환불완료
+                                                            </span>
+                                                        ) : canRefund ? (
+                                                            <button 
+                                                                className="product-refund-badge active"
+                                                                onClick={() => openRefundModal(order, product)}
+                                                            >
+                                                                환불 ({remainingQty}개 가능)
+                                                            </button>
+                                                        ) : (
+                                                            <span className="product-refund-badge disabled">
+                                                                환불완료
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <span className="product-price">
-                                                    {(product.price * product.quantity).toLocaleString()}원
-                                                </span>
-                                            </div>
-                                        ))
-                                    ) : order.items ? (
-                                        order.items.map((item, idx) => (
-                                            <div key={idx} className="product-row">
-                                                <div className="product-info">
-                                                    <span className="product-name">상품</span>
-                                                    <span className="product-quantity">수량: {item.quantity}개</span>
-                                                </div>
-                                            </div>
-                                        ))
+                                            );
+                                        })
                                     ) : (
                                         <p>상품 정보 없음</p>
                                     )}
                                 </div>
 
-                                    <div className="order-summary">
-                                        {order.couponCode && (
-                                            <div className="summary-row coupon">
-                                                <span>사용 쿠폰</span>
-                                                <span className="coupon-code">{order.couponCode}</span>
-                                            </div>
-                                        )}
-                                        {order.discountAmount > 0 && (
-                                            <div className="summary-row discount">
-                                                <span>쿠폰 할인</span>
-                                                <span className="discount-amount">
-                                                    -{order.discountAmount.toLocaleString()}원
-                                                </span>
-                                            </div>
-                                        )}
+                                <div className="order-summary">
+                                    {order.couponCode && (
+                                        <div className="summary-row coupon">
+                                            <span>사용 쿠폰</span>
+                                            <span className="coupon-code">{order.couponCode}</span>
+                                        </div>
+                                    )}
+                                    {order.discountAmount > 0 && (
+                                        <div className="summary-row discount">
+                                            <span>쿠폰 할인</span>
+                                            <span className="discount-amount">
+                                                -{order.discountAmount.toLocaleString()}원
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="summary-row total">
                                         <span>총 결제금액</span>
                                         <strong className="amount">
-                                            {order.amount?.toLocaleString()}원
+                                            {order.paidPrice?.toLocaleString()}원
                                         </strong>
                                     </div>
                                     {refundData && refundData.total > 0 && (
@@ -202,25 +258,10 @@ function MyPage() {
                                             <div className="summary-row final">
                                                 <span>최종 금액</span>
                                                 <strong className="final-amount">
-                                                    {(order.amount - refundData.total).toLocaleString()}원
+                                                    {(order.paidPrice - refundData.total).toLocaleString()}원
                                                 </strong>
                                             </div>
                                         </>
-                                    )}
-                                </div>
-
-                                <div className="order-actions">
-                                    {order.status === 'Cancelled' ? (
-                                        <button className="btn-disabled" disabled>
-                                            환불 완료
-                                        </button>
-                                    ) : (
-                                        <button 
-                                            className="btn-primary"
-                                            onClick={() => openRefundModal(order)}
-                                        >
-                                            환불 신청
-                                        </button>
                                     )}
                                 </div>
 
@@ -232,6 +273,12 @@ function MyPage() {
                                                 <div key={idx} className="refund-item">
                                                     <div className="refund-info">
                                                         <div className="refund-main">
+                                                            <span className="refund-product-name">
+                                                                {refund.productName}
+                                                            </span>
+                                                            <span className="refund-quantity-badge">
+                                                                {refund.quantity}개
+                                                            </span>
                                                             <span className="refund-date">
                                                                 {new Date(refund.createdAt).toLocaleDateString('ko-KR')}
                                                             </span>
@@ -259,7 +306,7 @@ function MyPage() {
                 </div>
             )}
 
-            {showRefundModal && (
+            {showRefundModal && selectedProduct && (
                 <div className="modal-overlay" onClick={() => setShowRefundModal(false)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
@@ -275,25 +322,52 @@ function MyPage() {
                         <div className="modal-body">
                             <div className="info-box">
                                 <div className="info-row">
-                                    <span className="info-label">주문 금액</span>
+                                    <span className="info-label">상품명</span>
                                     <span className="info-value">
-                                        {selectedOrder?.amount.toLocaleString()}원
+                                        {selectedProduct.name}
                                     </span>
                                 </div>
-                                {refunds[selectedOrder?._id]?.total > 0 && (
+                                <div className="info-row">
+                                    <span className="info-label">상품 가격</span>
+                                    <span className="info-value">
+                                        {selectedProduct.price.toLocaleString()}원
+                                    </span>
+                                </div>
+                                <div className="info-row">
+                                    <span className="info-label">주문 수량</span>
+                                    <span className="info-value">
+                                        {selectedProduct.quantity}개
+                                    </span>
+                                </div>
+                                {selectedProduct.refundedQuantity > 0 && (
                                     <div className="info-row">
                                         <span className="info-label">환불 완료</span>
                                         <span className="info-value refunded">
-                                            {refunds[selectedOrder._id].total.toLocaleString()}원
+                                            {selectedProduct.refundedQuantity}개
                                         </span>
                                     </div>
                                 )}
                                 <div className="info-row highlight">
-                                    <span className="info-label">환불 가능 금액</span>
+                                    <span className="info-label">환불 가능 수량</span>
                                     <span className="info-value">
-                                        {((selectedOrder?.amount || 0) - (refunds[selectedOrder?._id]?.total || 0)).toLocaleString()}원
+                                        {selectedProduct.quantity - (selectedProduct.refundedQuantity || 0)}개
                                     </span>
                                 </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>환불 수량</label>
+                                <input 
+                                    type="number"
+                                    min="1"
+                                    max={selectedProduct.quantity - (selectedProduct.refundedQuantity || 0)}
+                                    value={refundQuantity}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value) || 1;
+                                        const max = selectedProduct.quantity - (selectedProduct.refundedQuantity || 0);
+                                        setRefundQuantity(Math.min(Math.max(1, val), max));
+                                    }}
+                                />
                             </div>
 
                             <div className="form-group">
@@ -310,9 +384,15 @@ function MyPage() {
                                 </select>
                             </div>
 
+                            <div className="refund-amount-preview">
+                                <span>환불 예정 금액</span>
+                                <strong>{(selectedProduct.price * refundQuantity).toLocaleString()}원</strong>
+                            </div>
+
                             <div className="notice-box">
                                 <p>• 환불 신청 후 영업일 기준 3-5일 내에 처리됩니다.</p>
                                 <p>• 환불 금액은 결제하신 수단으로 반환됩니다.</p>
+                                <p>• 부분 환불 시 쿠폰은 복구되지 않습니다.</p>
                             </div>
                         </div>
                         

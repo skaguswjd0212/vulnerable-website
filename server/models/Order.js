@@ -15,12 +15,20 @@ const orderSchema = new mongoose.Schema({
         quantity: {
             type: Number,
             required: true
-        }
-    }],
-    amount: {
+        },
+        originalPrice: {
+            type: Number,
+            required: true
+        },
+        
+        refundedQuantity: { type: Number, default: 0 },
+
+        paidPrice: {
         type: Number,
         required: true
-    },
+        }
+    }
+    ],
     status: {
         type: String,
         default: 'Order Placed',

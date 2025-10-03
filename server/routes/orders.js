@@ -4,6 +4,7 @@ const { auth } = require("../middleware/auth");
 const { Order } = require("../models/Order");
 const { Product } = require("../models/Product");
 const { Refund } = require("../models/Refund");
+const { Coupon } = require("../models/Coupon");
 const mongoose = require('mongoose');
 
 // 주문 내역 조회
@@ -19,13 +20,20 @@ router.get('/', auth, async (req, res) => {
                         return {
                             productId: item.productId,
                             name: product ? product.name : '알 수 없는 상품',
-                            price: product ? product.price : 0,
-                            quantity: item.quantity
+                            price: item.paidPrice,
+                            quantity: item.quantity,
+                            refundedQuantity: item.refundedQuantity || 0
                         };
                     })
                 );
                 order._doc.products = productsWithDetails;
             }
+            
+            // ✅ 총 결제금액 계산 추가
+            const totalPaidPrice = order.items.reduce((sum, item) => {
+                return sum + (item.paidPrice * item.quantity);
+            }, 0);
+            order._doc.paidPrice = totalPaidPrice;
         }
         
         res.status(200).json({ success: true, orders });
@@ -55,13 +63,20 @@ router.get("/:orderId", auth, async (req, res) => {
                     return {
                         productId: item.productId,
                         name: product ? product.name : '알 수 없는 상품',
-                        price: product ? product.price : 0,
-                        quantity: item.quantity
+                        price: item.paidPrice,
+                        quantity: item.quantity,
+                        refundedQuantity: item.refundedQuantity || 0
                     };
                 })
             );
             order._doc.products = productsWithDetails;
         }
+        
+        // 총 결제금액 계산 추가
+        const totalPaidPrice = order.items.reduce((sum, item) => {
+            return sum + (item.paidPrice * item.quantity);
+        }, 0);
+        order._doc.paidPrice = totalPaidPrice;
 
         res.status(200).json({ success: true, order });
 
@@ -71,7 +86,7 @@ router.get("/:orderId", auth, async (req, res) => {
     }
 });
 
-// 환불 요청 API
+// 환불 요청
 router.post('/:orderId/refund', auth, async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -79,7 +94,6 @@ router.post('/:orderId/refund', auth, async (req, res) => {
     try {
         const { productId, quantity, reason } = req.body;
         
-        // 1. 주문 조회
         const order = await Order.findById(req.params.orderId).session(session);
         
         if (!order) {
@@ -90,7 +104,6 @@ router.post('/:orderId/refund', auth, async (req, res) => {
             });
         }
         
-        // 2. 권한 확인
         if (order.userId.toString() !== req.user._id.toString()) {
             await session.abortTransaction();
             return res.status(403).json({ 
@@ -99,7 +112,6 @@ router.post('/:orderId/refund', auth, async (req, res) => {
             });
         }
         
-        // 3. 필수 파라미터 검증
         if (!productId || !quantity || quantity <= 0) {
             await session.abortTransaction();
             return res.status(400).json({ 
@@ -108,10 +120,7 @@ router.post('/:orderId/refund', auth, async (req, res) => {
             });
         }
         
-        // 4. 주문에 해당 상품이 있는지 확인
-        const orderItem = order.items.find(
-            item => item.productId.toString() === productId
-        );
+        const orderItem = order.items.find(item => item.productId.toString() === productId);
         
         if (!orderItem) {
             await session.abortTransaction();
@@ -121,16 +130,17 @@ router.post('/:orderId/refund', auth, async (req, res) => {
             });
         }
         
-        // 5. 환불 수량 검증
-        if (quantity > orderItem.quantity) {
+        const refundedQuantity = orderItem.refundedQuantity || 0;
+        const refundableQuantity = orderItem.quantity - refundedQuantity;
+        
+        if (quantity > refundableQuantity) {
             await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
-                message: `환불 수량은 최대 ${orderItem.quantity}개까지 가능합니다.` 
+                message: `환불 가능 수량은 최대 ${refundableQuantity}개입니다.` 
             });
         }
         
-        // 6. 상품 정보 조회
         const product = await Product.findById(productId);
         if (!product) {
             await session.abortTransaction();
@@ -139,42 +149,24 @@ router.post('/:orderId/refund', auth, async (req, res) => {
                 message: '상품 정보를 찾을 수 없습니다.' 
             });
         }
+
+        // 환불 금액 = paidPrice * 수량
+        const refundAmount = orderItem.paidPrice * quantity;
         
-        const refundAmount = product.price * quantity;
-        
-        // 7. 이미 환불 요청된 상품인지 확인 (레이스 컨디션 방지)
-        const existingRefund = await Refund.findOne({ 
+        const existingPendingRefund = await Refund.findOne({ 
             orderId: req.params.orderId,
-            productId: productId
+            productId: productId,
+            status: 'pending'
         }).session(session);
         
-        if (existingRefund) {
+        if (existingPendingRefund) {
             await session.abortTransaction();
             return res.status(400).json({ 
                 success: false, 
-                message: '이미 환불 요청된 상품입니다.' 
+                message: '해당 상품에 대한 환불이 처리 중입니다.' 
             });
         }
         
-        // 8. 전체 환불 금액 검증
-        const allRefunds = await Refund.find({ 
-            orderId: req.params.orderId
-        }).session(session);
-        
-        const totalRefunded = allRefunds.reduce((sum, r) => sum + r.amount, 0);
-        
-        if (totalRefunded + refundAmount > order.amount) {
-            await session.abortTransaction();
-            return res.status(400).json({ 
-                success: false, 
-                message: `환불 가능 금액을 초과했습니다. (남은 금액: ${(order.amount - totalRefunded).toLocaleString()}원)` 
-            });
-        }
-        
-        // 9. DB 처리 시뮬레이션 (레이스 컨디션 테스트용 - 나중에 제거 가능)
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // 10. 환불 생성
         const refund = new Refund({
             orderId: req.params.orderId,
             userId: req.user._id,
@@ -187,25 +179,64 @@ router.post('/:orderId/refund', auth, async (req, res) => {
         });
         
         await refund.save({ session });
-        await Order.findByIdAndUpdate(
-        req.params.orderId, 
-        { status: 'Cancelled' },
-        { session }
+        
+        await Order.updateOne(
+            { 
+                _id: req.params.orderId,
+                'items.productId': productId 
+            },
+            { 
+                $inc: { 'items.$.refundedQuantity': quantity }
+            },
+            { session }
         );
-        // 11. 트랜잭션 커밋
+        
+        const updatedOrder = await Order.findById(req.params.orderId).session(session);
+        
+        const allItemsFullyRefunded = updatedOrder.items.every(item => {
+            const refunded = item.refundedQuantity || 0;
+            return refunded >= item.quantity;
+        });
+        
+        let newStatus;
+        if (allItemsFullyRefunded) {
+            newStatus = 'Cancelled';
+            
+            // 전체 환불 시에만 쿠폰 복구
+            if (order.couponCode) {
+                await Coupon.findOneAndUpdate(
+                    { code: order.couponCode },
+                    {
+                        usedAt: null,
+                        userId: null
+                    },
+                    { session }
+                );
+            }
+        } else {
+            newStatus = 'Partially Refunded';
+            // ✅ 부분 환불 시 쿠폰 복구 안함 (현실 로직)
+        }
+        
+        await Order.findByIdAndUpdate(
+            req.params.orderId,
+            { status: newStatus },
+            { session }
+        );
+        
         await session.commitTransaction();
         
         res.status(200).json({ 
             success: true, 
             refund,
-            message: '환불 요청이 접수되었습니다.'
+            message: '환불 요청이 접수되었습니다.',
+            orderStatus: newStatus
         });
         
     } catch (error) {
         await session.abortTransaction();
         console.error('환불 처리 에러:', error);
         
-        // 중복 키 에러 처리
         if (error.code === 11000) {
             return res.status(400).json({ 
                 success: false, 
@@ -235,11 +266,16 @@ router.get('/:orderId/refunds', auth, async (req, res) => {
         const refunds = await Refund.find({ orderId: req.params.orderId }).sort({ createdAt: -1 });
         const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
         
+        // 총 결제금액 계산
+        const orderAmount = order.items.reduce((sum, item) => {
+            return sum + (item.paidPrice * item.quantity);
+        }, 0);
+        
         res.json({ 
             success: true, 
             refunds,
             totalRefunded,
-            orderAmount: order.amount
+            orderAmount
         });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
