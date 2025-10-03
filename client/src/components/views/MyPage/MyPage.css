@@ -217,10 +217,13 @@
 }
 
 .summary-row.total {
-    border-top: 1px solid #e0e0e0;
     padding-top: 12px;
     margin-top: 8px;
     font-size: 1.1em;
+}
+
+.summary-row.refund {
+    padding: 8px 0;
 }
 
 .amount {

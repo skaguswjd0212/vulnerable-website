@@ -249,8 +249,8 @@ function MyPage() {
                                     </div>
                                     {refundData && refundData.total > 0 && (
                                         <>
-                                            <div className="summary-row">
-                                                <span>환불 금액</span>
+                                            <div className="summary-row refund">
+                                                <span>총 환불금액</span>
                                                 <span className="refund-amount">
                                                     -{refundData.total.toLocaleString()}원
                                                 </span>
